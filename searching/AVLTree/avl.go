@@ -3,6 +3,8 @@
 // https://algs4.cs.princeton.edu/code/javadoc/edu/princeton/cs/algs4/AVL.html
 package AVLTree
 
+import "algo/utils"
+
 const KeyNotExist = "Key Not Exist"
 
 type Node struct {
@@ -40,7 +42,7 @@ type AVL struct {
 }
 
 // have such a helper function to avoid visiting nil node
-func (self *AVL) height(node *Node) int {
+func (t *AVL) height(node *Node) int {
 	if node == nil {
 		return -1
 	} else {
@@ -49,7 +51,7 @@ func (self *AVL) height(node *Node) int {
 }
 
 // have such a helper function to avoid visiting nil node
-func (self *AVL) size(node *Node) int {
+func (t *AVL) size(node *Node) int {
 	if node == nil {
 		return 0
 	} else {
@@ -58,28 +60,33 @@ func (self *AVL) size(node *Node) int {
 }
 
 // Returns the number of key-value pairs in this symbol table.
-func (self *AVL) Size() int {
-	return self.size(self.root)
+func (t *AVL) Size() int {
+	return t.size(t.root)
+}
+
+// Returns the number of key-value pairs in this symbol table.
+func (t *AVL) Height() int {
+	return t.height(t.root)
 }
 
 // Returns the node by key
-func (self *AVL) get(n *Node, key int) *Node {
+func (t *AVL) get(n *Node, key int) *Node {
 	if n == nil {
 		return nil
 	} else {
 		if key == n.key {
 			return n
 		} else if key < n.key {
-			return self.get(n.left, key)
+			return t.get(n.left, key)
 		} else {
-			return self.get(n.right, key)
+			return t.get(n.right, key)
 		}
 	}
 }
 
 // Get value by key, return 0 if not exist
-func (self *AVL) Get(key int) int {
-	n := self.get(self.root, key)
+func (t *AVL) Get(key int) int {
+	n := t.get(t.root, key)
 	if n != nil {
 		return n.val
 	} else {
@@ -88,37 +95,106 @@ func (self *AVL) Get(key int) int {
 }
 
 // Return true if the key exists in the symbol table
-func (self *AVL) Contains(key int) bool {
-	n := self.get(self.root, key)
+func (t *AVL) Contains(key int) bool {
+	n := t.get(t.root, key)
 	return n != nil
 }
 
-func (self *AVL) put(node *Node, key int, val int) *Node {
+/**
+ * Returns the balance factor of the subtree. The balance factor is defined
+ * as the difference in height of the left subtree and right subtree, in
+ * this order. Therefore, a subtree with a balance factor of -1, 0 or 1 has
+ * the AVL property since the heights of the two child subtrees differ by at
+ * most one.
+ *
+ * @param x the subtree
+ * @return the balance factor of the subtree
+ */
+func (t *AVL) delta(node *Node) int {
 	if node == nil {
-		return &Node{key, val, 1, nil, nil}
+		return 0
+	}
+	return t.height(node.left) - t.height(node.right)
+}
+
+// Rotates the given subtree to the left.
+func (t *AVL) rotateLeft(node *Node) *Node {
+	newHead := node.right
+	node.right = newHead.left
+	newHead.left = node
+
+	node.size = 1 + t.size(node.left) + t.size(node.right)
+	node.height = 1 + utils.MaxOf(t.height(node.left), t.height(node.right))
+
+	newHead.size = 1 + t.size(newHead.left) + t.size(newHead.right)
+	newHead.height = 1 + utils.MaxOf(t.height(newHead.left), t.height(newHead.right))
+
+	return newHead
+}
+
+// Rotates the given subtree to the right.
+func (t *AVL) rotateRight(node *Node) *Node {
+	newHead := node.left
+	node.left = newHead.right
+	newHead.right = node
+
+	node.size = 1 + t.size(node.left) + t.size(node.right)
+	node.height = 1 + utils.MaxOf(t.height(node.left), t.height(node.right))
+
+	newHead.size = 1 + t.size(newHead.left) + t.size(newHead.right)
+	newHead.height = 1 + utils.MaxOf(t.height(newHead.left), t.height(newHead.right))
+
+	return newHead
+}
+
+// Balance the AVL Tree
+func (t *AVL) balance(node *Node) *Node {
+	deltaVal := t.delta(node)
+	if utils.Abs(deltaVal) <= 1 {
+		return node
+	}
+	if deltaVal == 2 {
+		if t.delta(node.left) == -1 {
+			node.left = t.rotateLeft(node.left)
+		}
+		return t.rotateRight(node)
+	} else {
+		// deltaVal == -2
+		if t.delta(node.right) == 1 {
+			node.right = t.rotateRight(node.right)
+		}
+		return t.rotateLeft(node)
+	}
+}
+
+func (t *AVL) put(node *Node, key int, val int) *Node {
+	if node == nil {
+		return &Node{key, val, 1, 0, nil, nil}
 	} else {
 		if key < node.key {
-			node.left = self.put(node.left, key, val)
-			// have such a self.size helper function to avoid visiting nil node
-			node.size = 1 + self.size(node.left) + self.size(node.right)
+			node.left = t.put(node.left, key, val)
+			// have such a t.size helper function to avoid visiting nil node
+			node.size = 1 + t.size(node.left) + t.size(node.right)
+			node.height = 1 + utils.MaxOf(t.height(node.left), t.height(node.right))
 		} else if key == node.key {
 			node.key = key
 			node.val = val
 		} else {
-			node.right = self.put(node.right, key, val)
-			// have such a self.size helper function to avoid visiting nil node
-			node.size = 1 + self.size(node.left) + self.size(node.right)
+			node.right = t.put(node.right, key, val)
+			// have such a t.size helper function to avoid visiting nil node
+			node.size = 1 + t.size(node.left) + t.size(node.right)
+			node.height = 1 + utils.MaxOf(t.height(node.left), t.height(node.right))
 		}
-		return node
+		return t.balance(node)
 	}
 }
 
 // Inserts the specified key-value pair into the symbol table
-func (self *AVL) Put(key int, val int) {
-	self.root = self.put(self.root, key, val)
+func (t *AVL) Put(key int, val int) {
+	t.root = t.put(t.root, key, val)
 }
 
-func (self *AVL) deleteMin(node *Node) *Node {
+func (t *AVL) deleteMin(node *Node) *Node {
 	/* Handle special case (node == nil) in major DeleteMin()
 	if node == nil {
 		return node
@@ -126,62 +202,64 @@ func (self *AVL) deleteMin(node *Node) *Node {
 	*/
 
 	if node.left != nil {
-		node.left = self.deleteMin(node.left)
+		node.left = t.deleteMin(node.left)
 		// don't forget to update size ---- review data structure
-		node.size = 1 + self.size(node.left) + self.size(node.right)
-		return node
+		node.height = 1 + utils.MaxOf(t.height(node.left), t.height(node.right))
+		node.size = 1 + t.size(node.left) + t.size(node.right)
+		return t.balance(node)
 	}
 	return node.right
 }
 
 // Removes the smallest key and associated value from the symbol table.
-func (self *AVL) DeleteMin() {
-	if self.Size() == 0 {
+func (t *AVL) DeleteMin() {
+	if t.Size() == 0 {
 		return
 	}
-	self.root = self.deleteMin(self.root)
+	t.root = t.balance(t.deleteMin(t.root))
 }
 
-func (self *AVL) deleteMax(node *Node) *Node {
+func (t *AVL) deleteMax(node *Node) *Node {
 	if node.right != nil {
-		node.right = self.deleteMax(node.right)
-		node.size = 1 + self.size(node.left) + self.size(node.right)
-		return node
+		node.right = t.deleteMax(node.right)
+		node.height = 1 + utils.MaxOf(t.height(node.left), t.height(node.right))
+		node.size = 1 + t.size(node.left) + t.size(node.right)
+		return t.balance(node)
 	}
 	return node.left
 }
 
 // Removes the largest key and associated value from the symbol table
-func (self *AVL) DeleteMax() {
-	if self.Size() == 0 {
+func (t *AVL) DeleteMax() {
+	if t.Size() == 0 {
 		return
 	}
-	self.root = self.deleteMax(self.root)
+	t.root = t.balance(t.deleteMax(t.root))
 }
 
-func (self *AVL) findMin(node *Node) *Node {
+func (t *AVL) findMin(node *Node) *Node {
 	if node == nil {
 		return node
 	}
 
 	if node.left != nil {
-		return self.findMin(node.left)
+		return t.findMin(node.left)
 	}
 	return node
 }
 
-func (self *AVL) findMax(node *Node) *Node {
+func (t *AVL) findMax(node *Node) *Node {
 	if node == nil {
 		return node
 	}
 
 	if node.right != nil {
-		return self.findMax(node.right)
+		return t.findMax(node.right)
 	}
 	return node
 }
 
-func (self *AVL) delete(node *Node, key int) *Node {
+func (t *AVL) delete(node *Node, key int) *Node {
 	if node == nil {
 		return nil
 	} else if node.key == key {
@@ -190,38 +268,39 @@ func (self *AVL) delete(node *Node, key int) *Node {
 		} else if node.right == nil {
 			return node.left
 		} else {
-			var minNode *Node = self.findMin(node.right)
+			var minNode *Node = t.findMin(node.right)
 			node.key = minNode.key
 			node.val = minNode.val
-			node.right = self.deleteMin(node.right)                      // dont forget node.right =
-			node.size = 1 + self.size(node.left) + self.size(node.right) // dont forget update
-			return node
+			node.right = t.deleteMin(node.right) // dont forget node.right
+			node.height = 1 + utils.MaxOf(t.height(node.left), t.height(node.right))
+			node.size = 1 + t.size(node.left) + t.size(node.right) // dont forget update
+			return t.balance(node)
 		}
 	} else if key < node.key {
-		node.left = self.delete(node.left, key)
+		node.left = t.delete(node.left, key)
 	} else {
-		node.right = self.delete(node.right, key)
+		node.right = t.delete(node.right, key)
 	}
-	node.size = 1 + self.size(node.left) + self.size(node.right) // dont forget update
-	return node
+	node.size = 1 + t.size(node.left) + t.size(node.right) // dont forget update
+	return t.balance(node)
 }
 
-func (self *AVL) Delete(key int) {
-	self.root = self.delete(self.root, key)
+func (t *AVL) Delete(key int) {
+	t.root = t.balance(t.delete(t.root, key))
 }
 
-func (self *AVL) Min() (key int, val int) {
-	minNode := self.findMin(self.root)
+func (t *AVL) Min() (key int, val int) {
+	minNode := t.findMin(t.root)
 	return minNode.key, minNode.val
 }
 
-func (self *AVL) Max() (key int, val int) {
-	maxNode := self.findMax(self.root)
+func (t *AVL) Max() (key int, val int) {
+	maxNode := t.findMax(t.root)
 	return maxNode.key, maxNode.val
 }
 
 // Returns the node with the largest key in the symbol table less than or equal to key.
-func (self *AVL) floor(node *Node, key int) *Node {
+func (t *AVL) floor(node *Node, key int) *Node {
 	if node == nil {
 		return node
 	}
@@ -230,26 +309,26 @@ func (self *AVL) floor(node *Node, key int) *Node {
 		return node
 	} else if node.key < key {
 		// pay attention to this part!!
-		// if node.right != nil {return self.floor(node.right, key)}
+		// if node.right != nil {return t.floor(node.right, key)}
 		//  maybe the right tree are all ndoes > key
-		r := self.floor(node.right, key)
+		r := t.floor(node.right, key)
 		if r != nil {
 			return r
 		} else {
 			return node
 		}
 	} else {
-		return self.floor(node.left, key)
+		return t.floor(node.left, key)
 	}
 }
 
 // Returns the node with the largest key in the symbol table less than or equal to key.
-func (self *AVL) Floor(key int) *Node {
-	return self.floor(self.root, key)
+func (t *AVL) Floor(key int) *Node {
+	return t.floor(t.root, key)
 }
 
 // Returns the smallest key in the symbol table greater than or equal to key.
-func (self *AVL) ceiling(node *Node, key int) *Node {
+func (t *AVL) ceiling(node *Node, key int) *Node {
 	if node == nil {
 		return node
 	}
@@ -258,34 +337,34 @@ func (self *AVL) ceiling(node *Node, key int) *Node {
 		return node
 	} else if node.key > key {
 		// pay attention to this part!!
-		// if node.right != nil {return self.floor(node.right, key)}
+		// if node.right != nil {return t.floor(node.right, key)}
 		//  maybe the right tree are all ndoes > key
-		r := self.ceiling(node.left, key)
+		r := t.ceiling(node.left, key)
 		if r != nil {
 			return r
 		} else {
 			return node
 		}
 	} else {
-		return self.ceiling(node.right, key)
+		return t.ceiling(node.right, key)
 	}
 }
 
 // Returns the smallest key in the symbol table greater than or equal to {@code key}.
-func (self *AVL) Ceiling(key int) *Node {
-	return self.ceiling(self.root, key)
+func (t *AVL) Ceiling(key int) *Node {
+	return t.ceiling(t.root, key)
 }
 
-func (self *AVL) selectHelper(node *Node, k int) *Node {
+func (t *AVL) selectHelper(node *Node, k int) *Node {
 	if node == nil {
 		return node
 	}
-	if self.size(node.left) == k { // say k = 0, should return the smallest
+	if t.size(node.left) == k { // say k = 0, should return the smallest
 		return node
-	} else if self.size(node.left) < k {
-		return self.selectHelper(node.right, k-1-self.size(node.left))
+	} else if t.size(node.left) < k {
+		return t.selectHelper(node.right, k-1-t.size(node.left))
 	} else {
-		return self.selectHelper(node.left, k)
+		return t.selectHelper(node.left, k)
 	}
 }
 
@@ -294,78 +373,78 @@ func (self *AVL) selectHelper(node *Node, k int) *Node {
 (1) If the target is found, then the index ( = how many keys < k) is returned.
 (2) If the target is not found, then the index to be inserted
 of k ( =  ( = how many keys < k)) is returned. */
-func (self *AVL) Select(k int) *Node {
-	return self.selectHelper(self.root, k)
+func (t *AVL) Select(k int) *Node {
+	return t.selectHelper(t.root, k)
 }
 
-func (self *AVL) rank(node *Node, key int) int {
+func (t *AVL) rank(node *Node, key int) int {
 	if node == nil {
 		return 0
 	}
 	if node.key < key {
-		return self.size(node.left) + 1 + self.rank(node.right, key)
+		return t.size(node.left) + 1 + t.rank(node.right, key)
 	} else if node.key == key {
-		return self.size(node.left)
+		return t.size(node.left)
 	} else {
-		return self.rank(node.left, key)
+		return t.rank(node.left, key)
 	}
 }
 
 // Return the number of keys in the symbol table strictly less than `key`
-func (self *AVL) Rank(key int) int {
-	return self.rank(self.root, key)
+func (t *AVL) Rank(key int) int {
+	return t.rank(t.root, key)
 }
 
-func (self *AVL) keys(node *Node, res *[]int) {
+func (t *AVL) keys(node *Node, res *[]int) {
 	if node == nil {
 		return
 	} else {
-		self.keys(node.left, res)
+		t.keys(node.left, res)
 		*res = append(*res, node.key)
-		self.keys(node.right, res)
+		t.keys(node.right, res)
 	}
 }
 
 // Returns all keys in the symbol table as an Iterable
-func (self *AVL) Keys() []int {
+func (t *AVL) Keys() []int {
 	var res []int
-	self.keys(self.root, &res)
+	t.keys(t.root, &res)
 	return res
 }
 
-func (self *AVL) rangekeys(node *Node, lo int, hi int, res *[]int) {
+func (t *AVL) rangekeys(node *Node, lo int, hi int, res *[]int) {
 	if node == nil {
 		return
 	}
 	if node.key < lo {
-		self.rangekeys(node.right, lo, hi, res)
+		t.rangekeys(node.right, lo, hi, res)
 	} else if node.key > hi {
-		self.rangekeys(node.left, lo, hi, res)
+		t.rangekeys(node.left, lo, hi, res)
 	} else {
-		self.rangekeys(node.left, lo, hi, res)
+		t.rangekeys(node.left, lo, hi, res)
 		*res = append(*res, node.key)
-		self.rangekeys(node.right, lo, hi, res)
+		t.rangekeys(node.right, lo, hi, res)
 	}
 }
 
 // Returns all keys in the symbol table in the given range.
-func (self *AVL) RangeKeys(lo int, hi int) []int {
+func (t *AVL) RangeKeys(lo int, hi int) []int {
 	var res []int
-	self.rangekeys(self.root, lo, hi, &res)
+	t.rangekeys(t.root, lo, hi, &res)
 	return res
 }
 
 // Returns the number of keys in the symbol table in the given range.
-func (self *AVL) RangeSize(lo int, hi int) int {
-	return len(self.RangeKeys(lo, hi))
+func (t *AVL) RangeSize(lo int, hi int) int {
+	return len(t.RangeKeys(lo, hi))
 }
 
 // Returns the keys in the AVL in level order
-func (self *AVL) LevelOrder() []int {
+func (t *AVL) LevelOrder() []int {
 	queue := make([]*Node, 0)
 	res := make([]int, 0)
-	if self.root != nil {
-		queue = append(queue, self.root)
+	if t.root != nil {
+		queue = append(queue, t.root)
 	}
 	for len(queue) != 0 {
 		a := queue[0]
